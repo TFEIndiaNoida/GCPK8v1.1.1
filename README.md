@@ -1,66 +1,80 @@
-# Terraform Enterprise FDO - External on Google Cloud Platform
+# Terraform Enterprise FDO - GCP with IAM Passwordless Authentication
 
-This is a repository to have a TFE FDO with kubernetes on GCP. This is using a PostgreSQL, Redis and a bucket from GCP. 
+This repository deploys Terraform Enterprise (TFE) Flexible Deployment Option (FDO) on Google Kubernetes Engine (GKE) with external services on GCP. 
 
-The kubernetes configuration can be setup with the autopilot feature enabled or disabled. When the gke autopilot configuration is enabled it will automatically add nodes to the cluster to make sure it is able to start all the agent runs for Terraform Enterprise. 
+## Key Features
+- **IAM Passwordless Authentication** for Cloud SQL PostgreSQL
+- External PostgreSQL database with IAM-based authentication
+- Redis with mTLS authentication
+- Google Cloud Storage for object storage
+- TLS certificates via Let's Encrypt (ACME)
+- Standard GKE cluster (non-Autopilot)
 
-# Diagram
-
-![](diagram/diagram_tfe_fdo_gcp_external_kubernetes.png)  
+## Architecture
+- **Compute**: GKE Standard cluster with managed node pools
+- **Database**: Cloud SQL PostgreSQL with IAM authentication enabled
+- **Cache**: Redis instance with mTLS
+- **Storage**: Google Cloud Storage bucket
+- **Networking**: Private VPC with service networking  
 
 # Prerequisites
 
 ## License
-Make sure you have a TFE license available for use
+Make sure you have a valid TFE license available
 
-## GCP
+## GCP Setup
 
-Have your GCP credentials configured
+### Authentication
+Configure your GCP credentials:
 
-```
-gcloud config set account <your account>
+```bash
+gcloud config set account <your-account>
 gcloud auth activate-service-account --key-file=key.json
-gcloud config set project <your project>
+gcloud config set project <your-project>
 gcloud auth application-default login
-export USE_GKE_GCLOUD_AUTH_PLUGIN=True      # needed to work correctly with kubectl and getting credentials later
+export USE_GKE_GCLOUD_AUTH_PLUGIN=True  # Required for kubectl integration
 ```
 
-#### API enabled for
-- Service Networking API
-- Cloud SQL admin API
-- Google Cloud Memorystore for Redis API
-- Kubernetes Engine API
+### Required GCP APIs
+Enable the following APIs:
 
-Using gcloud to enable them
-```
-gcloud services enable serviceusage.googleapis.com      # this might give an error to be enabled from the console first with a link. 
+```bash
+gcloud services enable compute.googleapis.com
+gcloud services enable container.googleapis.com
+gcloud services enable servicenetworking.googleapis.com
 gcloud services enable sqladmin.googleapis.com
 gcloud services enable redis.googleapis.com
-gcloud services enable container.googleapis.com
+gcloud services enable iam.googleapis.com
 ```
 
-
-#### Following roles assigned to your account
+### IAM Permissions
+Your GCP account needs these roles:
 - Compute Network Admin
 - Compute Storage Admin
 - Editor
 - Project IAM Admin
-- kubernetes engine admin
-- kubernetes engine cluster admin
-or
-- owner
+- Kubernetes Engine Admin
+- Kubernetes Engine Cluster Admin
 
-## AWS
+**Or simply:** Owner role
 
-This repository uses AWS resources for the DNS resources and creating the DNS records
+### Important: IAM Database Authentication
+This setup uses **IAM passwordless authentication** for Cloud SQL PostgreSQL. The infrastructure creates:
+1. A service account for GKE nodes
+2. An IAM database user (format: `service-account-name@project-id.iam`)
+3. Cloud SQL instance with IAM authentication enabled
+
+## GCP DNS (using Google Cloud DNS)
+
+This repository uses Google Cloud DNS for DNS management. Ensure you have a managed DNS zone created in your GCP project.
 
 ## Install terraform  
 See the following documentation [How to install Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
 
 ## TLS certificate
-You need to have valid TLS certificates that can be used with the DNS name you will be using to contact the TFE instance.  
+You need valid TLS certificates for the DNS name you'll use to access TFE.  
   
-The repo assumes you have no certificates and want to create them using Let's Encrypt and that your DNS domain is managed under AWS. 
+This repository automatically provisions certificates using **Let's Encrypt (ACME)** with DNS-01 challenge via Google Cloud DNS. 
 
 ## kubectl
 Make sure kubectl is available on your system. Please see the documentation [here](https://kubernetes.io/docs/tasks/tools/).
@@ -68,116 +82,210 @@ Make sure kubectl is available on your system. Please see the documentation [her
 ## helm
 Make sure helm is available on your system. Please see the documentation [here](https://helm.sh/docs/intro/install/)
 
-# How to
+# Deployment Guide
 
-- Clone the repository to your local machine
-```sh
-git clone https://github.com/munnep/tfe_fdo_gcp_external_kubernetes.git
-```
-- Add your gcp authentication key as `key.json` to the root directory of the repository
+## Step 1: Clone Repository
 
-## Now you will need to create the infrastructure for Kubernetes
-- Go to the directory  
-```sh
-cd tfe_fdo_gcp_external_kubernetes/infra
+```bash
+git clone https://github.com/TFEIndiaNoida/GCPK8v1.1.1.git
+cd GCPK8v1.1.1
 ```
-- create a file called `variables.auto.tfvars` with the following contents and your own values
+
+## Step 2: GCP Service Account Key
+
+Add your GCP service account authentication key as `key.json` to the root directory of the repository.
+
+## Step 3: Deploy Infrastructure (GKE, PostgreSQL, Redis, Storage)
+
+Navigate to the infrastructure directory:
+```bash
+cd infra
 ```
+
+Create `variables.auto.tfvars` with your configuration:
+```hcl
 # General
-tag_prefix             = "tfe29"                       # TAG prefix for names to easily find your AWS resources
-# gcp     
-gcp_region             = "europe-west4"                # GCP region creating the resources
-vnet_cidr              = "10.214.0.0/16"               # Network to be used
-gcp_project            = "hc-ff9323d13b0e4e0da8171"    # GCP project id (found in keys.json)
-gcp_location           = "EU"                          # location to create SQL and bucket 
-rds_password           = "Password#1"                  # password used for PostgreSQL
-gke_auto_pilot_enabled = false                         # gke cluster created with the autopilot feature
+tag_prefix             = "tfe29"                          # Prefix for resource names
+# GCP Configuration
+gcp_region             = "asia-south1"                    # GCP region (e.g., asia-south1, us-central1)
+vnet_cidr              = "10.214.0.0/16"                  # VPC network CIDR
+gcp_project            = "hc-f4cfe5fcacd245c7985c932215d" # Your GCP project ID
+gcp_location           = "EU"                             # Storage bucket location (US, EU, ASIA)
+rds_password           = "Password#1"                     # PostgreSQL password (for traditional users if needed)
+gke_auto_pilot_enabled = false                            # Use standard GKE (not Autopilot)
 ```
-- Terraform initialize
-```
+
+**Important Notes:**
+- Set `gke_auto_pilot_enabled = false` for standard GKE cluster
+- The `rds_password` is used only for creating a traditional PostgreSQL user as backup
+- IAM authentication will be the primary authentication method
+Initialize and deploy the infrastructure:
+```bash
 terraform init
-```
-- Terraform plan
-```
 terraform plan
-```
-- Terraform apply
-```
 terraform apply
 ```
-- Terraform output should create 20 resources and show outputs used by the next steps
+
+Expected output (creates ~20 resources):
 ```
-Plan: 20 to add, 0 to change, 0 to destroy.
+Apply complete! Resources: 20 added, 0 changed, 0 destroyed.
 
 Outputs:
 
-Outputs:
-
-cluster-name = "tfe29-gke-cluster"
-gcp_location = "EU"
-gcp_project = "hc-fbb4ffd7539b49348762f97a2ea"
-gcp_region = "europe-west4"
-google_bucket = "tfe29-bucket"
-kubectl_environment = "gcloud container clusters get-credentials tfe29-gke-cluster --region europe-west4"
-pg_address = "10.140.1.3"
-pg_dbname = "tfe"
-pg_password = <sensitive>
-pg_user = "admin-tfe"
-prefix = "tfe29"
-redis_host = "10.140.0.3"
-redis_port = 6379
-gke_auto_pilot_enabled = false
+cluster-name               = "tfe29-gke-cluster"
+gcp_location              = "EU"
+gcp_project               = "hc-f4cfe5fcacd245c7985c932215d"
+gcp_region                = "asia-south1"
+google_bucket             = "tfe29-bucket"
+kubectl_environment       = "gcloud container clusters get-credentials tfe29-gke-cluster --region asia-south1"
+pg_address                = "10.43.1.3"
+pg_dbname                 = "tfe"
+pg_password               = <sensitive>
+pg_user                   = "tfe29-bucket-test2@hc-f4cfe5fcacd245c7985c932215d.iam"  # IAM user!
+prefix                    = "tfe29"
+redis_host                = "harshit-redis.tf-support.hashicorpdemo.com"
+redis_port                = 6379
+service_account           = "tfe29-bucket-test2@hc-f4cfe5fcacd245c7985c932215d.iam.gserviceaccount.com"
+gke_auto_pilot_enabled    = false
 ```
 
-## Now you will need to deploy Terraform Enterprise on to this cluster
+**Key Points:**
+- Note the `pg_user` output - it's in IAM format (`name@project-id.iam`)
+- The `service_account` is used by GKE nodes to authenticate
+- Configure `kubectl` using the `kubectl_environment` command
 
-- Go to the directory `../tfe`
-```
+## Step 4: Deploy Terraform Enterprise on GKE
+
+Navigate to the TFE directory:
+```bash
 cd ../tfe
 ```
-- Create a file called `variables.auto.tfvars` with the following contents
+
+Create `variables.auto.tfvars` with your configuration:
+```hcl
+# DNS Configuration
+dns_hostname            = "tfe29"                                      # Hostname for TFE
+dns_zonename            = "hc-f4cfe5fcacd245c7985c932215d.gcp.sbx.hashicorpdemo.com"  # Your GCP DNS zone
+certificate_email       = "your.email@example.com"                     # Email for Let's Encrypt certificates
+
+# TFE Configuration
+tfe_encryption_password = "Password#1"                                 # TFE encryption password
+tfe_license             = "02MV4UU43BK5HGYYTOJZ..."                   # Your full TFE license (raw text)
+tfe_release             = "1.1.1"                                      # TFE version (e.g., 1.1.1, v202501-1)
+replica_count           = 2                                            # Number of TFE pod replicas
+
+# GCP (for DNS - using Google Cloud DNS)
+gcp_region              = "asia-south1"                                # Same as infrastructure region
 ```
-dns_hostname               = "tfe29"                                   # Hostname used for TFE
-dns_zonename               = "aws.munnep.com"                          # DNS zone where the hostname record can be created
-certificate_email          = "patrick.munne@hashicorp.com"             # email address used for creating valid certificates
-tfe_encryption_password    = "Password#1"                              # encryption key used by TFE
-tfe_license                = "02MV4UU43BK5HGYYTOJZ"                    # TFE license as a string
-replica_count              = 1                                         # Number of replicas for TFE you would like to have started
-tfe_license                = "<your_tfe_license_raw_text>"             # Your TFE license in raw text
-tfe_release                = "v202501-1"                               # The version of TFE application you wish to be deployed   
-# AWS
-region                     = "eu-north-1"                              # To create the DNS record on AWS          
-```
-- Initialize the environment
-```
+
+**Important Configuration Notes:**
+- The TFE deployment uses **passwordless IAM authentication** automatically
+- `TFE_DATABASE_PASSWORDLESS_GOOGLE_USE_DEFAULT_CREDENTIALS` is set to `"true"` in `overrides-gke.yaml`
+- Database username is automatically set to the IAM service account format
+- No database password is stored or transmitted
+
+Initialize and deploy TFE:
+```bash
 terraform init
-```
-- Create the environment
-```
 terraform apply
 ```
-- This will create 7 resources
+
+Expected output (creates ~7 resources):
 ```
 Apply complete! Resources: 7 added, 0 changed, 0 destroyed.
 
 Outputs:
 
-execute_script_to_create_user_admin = "./configure_tfe.sh tfe29.aws.munnep.com patrick.munne@hashicorp.com Password#1"
-tfe_application_url = "https://tfe29.aws.munnep.com"
+execute_script_to_create_user_admin = "./configure_tfe.sh tfe29.hc-f4cfe5fcacd245c7985c932215d.gcp.sbx.hashicorpdemo.com your.email@example.com Password#1"
+tfe_application_url = "https://tfe29.hc-f4cfe5fcacd245c7985c932215d.gcp.sbx.hashicorpdemo.com"
 ```
-- Execute the `configure_tfe.sh tfe11.aws.munnep.com patrick.munne@hashicorp.com Password#1` script to do the following
-  - Create a user called admin with the password specified
-  - Create an organization called test
-- login to the application on url https://tfe29.aws.munnep.com
 
-# TODO
+## Step 5: Configure TFE
 
-# DONE
-- [x] build network according to the diagram
-- [x] create kubernetes
-- [x] Create redis
-- [x] create PostgreSQL instance
-- [x] create a bucket
-- [x] Create a valid certificate to use 
-- [x] install TFE using helm chart
-- [x] point dns name to loadbalancer # GCPK8v1.1.1
+Execute the configuration script to create an admin user:
+```bash
+./configure_tfe.sh tfe29.hc-f4cfe5fcacd245c7985c932215d.gcp.sbx.hashicorpdemo.com your.email@example.com Password#1
+```
+
+This script will:
+- Create an admin user with the specified credentials
+- Create a default organization called `test`
+
+## Step 6: Access TFE
+
+Login to your TFE instance at:
+```
+https://tfe29.hc-f4cfe5fcacd245c7985c932215d.gcp.sbx.hashicorpdemo.com
+```
+
+### Verify IAM Authentication
+
+To verify passwordless IAM authentication is working, check the pod logs:
+```bash
+kubectl logs -n terraform-enterprise -l app=terraform-enterprise --tail=50 | grep -i "managed identity\|iam"
+```
+
+You should see:
+```
+Managed Identity authentication enabled for PostgreSQL via CloudManagedIdentityDBAuthPatch
+```
+
+## Troubleshooting
+
+### Check Pod Status
+```bash
+kubectl get pods -n terraform-enterprise
+```
+
+### View Pod Logs
+```bash
+kubectl logs -n terraform-enterprise <pod-name> --tail=100
+```
+
+### Describe Pod
+```bash
+kubectl describe pod -n terraform-enterprise <pod-name>
+```
+
+### Verify Database Connection
+The pod should authenticate to Cloud SQL using IAM. Check logs for:
+```
+database.pgmultiauth: getting initial db auth token
+```
+
+## Key Features of This Setup
+
+✅ **IAM Passwordless Authentication**: No database passwords stored or transmitted  
+✅ **mTLS for Redis**: Secure Redis connections using mutual TLS  
+✅ **Automatic Certificate Management**: Let's Encrypt certificates via ACME  
+✅ **High Availability**: Multiple TFE replicas with external services  
+✅ **Secure by Design**: Uses GCP IAM for authentication and authorization  
+
+## Important Files
+
+- `infra/outputs.tf`: Updated to use IAM database user format
+- `tfe/overrides-gke.yaml`: Configured with `TFE_DATABASE_PASSWORDLESS_GOOGLE_USE_DEFAULT_CREDENTIALS: "true"`
+- `.gitignore`: Excludes sensitive files (.tfstate, .tfvars, certificates, etc.)
+
+## Architecture Highlights
+
+- **Database**: Cloud SQL PostgreSQL with IAM authentication enabled
+- **Authentication Method**: Service account attached to GKE nodes provides credentials
+- **Database User Format**: `service-account-name@project-id.iam` (not traditional username)
+- **No Passwords**: IAM tokens are obtained automatically from GCP metadata service
+
+## Completed Features
+
+- [x] Build VPC network with private subnets
+- [x] Create GKE cluster (standard mode)
+- [x] Deploy Redis with mTLS
+- [x] Create Cloud SQL PostgreSQL with IAM authentication
+- [x] Configure IAM database user
+- [x] Create GCS bucket
+- [x] Generate TLS certificates via Let's Encrypt
+- [x] Deploy TFE using Helm chart with IAM passwordless auth
+- [x] Configure DNS records
+- [x] Enable passwordless database authentication
+
+## Version
+TFE v1.1.1 with IAM Passwordless Authentication for GCP
