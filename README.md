@@ -132,22 +132,26 @@ Apply complete! Resources: 20 added, 0 changed, 0 destroyed.
 
 Outputs:
 
-cluster-name               = "tfe29-gke-cluster"
-gcp_location              = "EU"
-gcp_project               = "hc-f4cfe5fcacd245c7985c932215d"
-gcp_region                = "asia-south1"
-google_bucket             = "tfe29-bucket"
-kubectl_environment       = "gcloud container clusters get-credentials tfe29-gke-cluster --region asia-south1"
-pg_address                = "10.43.1.3"
-pg_dbname                 = "tfe"
-pg_password               = <sensitive>
-pg_user                   = "tfe29-bucket-test2@hc-f4cfe5fcacd245c7985c932215d.iam"  # IAM user!
-prefix                    = "tfe29"
-redis_host                = "harshit-redis.tf-support.hashicorpdemo.com"
-redis_port                = 6379
-service_account           = "tfe29-bucket-test2@hc-f4cfe5fcacd245c7985c932215d.iam.gserviceaccount.com"
-gke_auto_pilot_enabled    = false
-```
+cluster-name = "tfe29-gke-cluster"
+explorer_db_host = "10.43.1.3"
+explorer_db_name = "tfe-explorer"
+explorer_db_password = <sensitive>
+explorer_db_user = "admin-tfe-explorer"
+gcp_location = "EU"
+gcp_project = "hc-f4cfe5fcacd245c7985c932215d"
+gcp_region = "asia-south1"
+gke_auto_pilot_enabled = false
+google_bucket = "tfe29-bucket"
+kubectl_environment = "gcloud container clusters get-credentials tfe29-gke-cluster --region asia-south1"
+pg_address = "10.43.1.3"
+pg_dbname = "tfe"
+pg_password = <sensitive>
+pg_user = "tfe29-bucket-test2@hc-f4cfe5fcacd245c7985c932215d.iam"
+prefix = "tfe29"
+redis_auth_string = <sensitive>
+redis_host = "harshit-redis.tf-support.hashicorpdemo.com"
+redis_port = 6379
+service_account = "tfe29-bucket-test2@hc-f4cfe5fcacd245c7985c932215d.iam.gserviceaccount.com"
 
 **Key Points:**
 - Note the `pg_user` output - it's in IAM format (`name@project-id.iam`)
