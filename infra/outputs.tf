@@ -31,7 +31,8 @@ output "pg_dbname" {
 }
 
 output "pg_user" {
-  value = "admin-tfe"
+  # value = "admin-tfe"  # Password-based authentication
+  value = trimsuffix(google_service_account.service_account.email, ".gserviceaccount.com")  # IAM authentication
 }
 
 output "pg_password" {
@@ -44,11 +45,16 @@ output "pg_address" {
 }
 
 output "redis_host" {
-  value = google_redis_instance.cache.host
+  value = "harshit-redis.tf-support.hashicorpdemo.com"
 }
 
 output "redis_port" {
-  value = google_redis_instance.cache.port
+  value = 6379
+}
+
+output "redis_auth_string" {
+  value     = google_redis_instance.cache.auth_string
+  sensitive = true
 }
 
 output "google_bucket" {
@@ -57,4 +63,24 @@ output "google_bucket" {
 
 output "gke_auto_pilot_enabled" {
   value = var.gke_auto_pilot_enabled
+}
+
+# Explorer database outputs
+output "explorer_db_host" {
+  value = google_sql_database_instance.instance.private_ip_address
+  description = "Explorer database host (same instance as main TFE DB)"
+}
+
+output "explorer_db_name" {
+  value = google_sql_database.tfe-explorer-db.name
+}
+
+output "explorer_db_user" {
+  value = "admin-tfe-explorer"
+}
+
+output "explorer_db_password" {
+  value     = var.rds_password
+  sensitive = true
+  description = "Explorer database password (same as main TFE DB password)"
 }

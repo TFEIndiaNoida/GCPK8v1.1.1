@@ -7,6 +7,12 @@ image:
   repository: images.releases.hashicorp.com
   name: hashicorp/terraform-enterprise
   tag: ${tfe_release}
+imagePullSecrets:
+  - name: terraform-enterprise
+resources:
+  requests:
+    memory: "4Gi"
+    cpu: "2"
 env:
   variables:
     TFE_HOSTNAME: ${fqdn}
@@ -15,16 +21,47 @@ env:
     TFE_DATABASE_NAME: ${pg_dbname}
     TFE_DATABASE_USER: ${pg_user}
     TFE_DATABASE_PARAMETERS: sslmode=require
+    TFE_DATABASE_PASSWORDLESS_GOOGLE_USE_DEFAULT_CREDENTIALS: "true"  # Commented out for password-based authentication
     # Object storage settings.
     TFE_OBJECT_STORAGE_TYPE: "google"
     TFE_OBJECT_STORAGE_GOOGLE_PROJECT: ${gcp_project}
     TFE_OBJECT_STORAGE_GOOGLE_BUCKET: ${google_bucket}
-    TFE_OBJECT_STORAGE_GOOGLE_CREDENTIALS: ""
+    
+    #Redis settings.
     TFE_REDIS_HOST: ${redis_host}:${redis_port}
     TFE_REDIS_USE_AUTH: false
+    TFE_REDIS_USE_MTLS: "true"
+    TFE_REDIS_CA_CERT_PATH: "/etc/redis-mtls/ca.crt"
+    TFE_REDIS_CLIENT_CERT_PATH: "/etc/redis-mtls/client.crt"
+    TFE_REDIS_CLIENT_KEY_PATH: "/etc/redis-mtls/client.key"
+    # Optional if Sidekiq needs its own connection
+    
+    TFE_REDIS_SIDEKIQ_USE_MTLS: "true"
+    TFE_REDIS_SIDEKIQ_CA_CERT_PATH: "/etc/redis-mtls/ca.crt"
+    TFE_REDIS_SIDEKIQ_CLIENT_CERT_PATH: "/etc/redis-mtls/client.crt"
+    TFE_REDIS_SIDEKIQ_CLIENT_KEY_PATH: "/etc/redis-mtls/client.key"
     TFE_IACT_SUBNETS: "0.0.0.0/0"
+    
+  
+    # Explorer settings disabled - incompatible with IAM passwordless authentication
+    # TFE_EXPLORER_DATABASE_HOST: ${explorer_db_host}
+    # TFE_EXPLORER_DATABASE_NAME: ${explorer_db_name}
+    # TFE_EXPLORER_DATABASE_USER: ${pg_user}
+    # TFE_EXPLORER_DATABASE_PARAMETERS: sslmode=require
   secrets:
-    TFE_DATABASE_PASSWORD: ${pg_password}
     TFE_ENCRYPTION_PASSWORD:  ${enc_password}
     TFE_OBJECT_STORAGE_S3_SERVER_SIDE_ENCRYPTION: AES256
-    TFE_LICENSE: ${tfe_license} 
+    TFE_OBJECT_STORAGE_GOOGLE_CREDENTIALS: ${google_creds_b64}
+    TFE_LICENSE: ${tfe_license}
+    #TFE_DATABASE_PASSWORD: ${pg_password}
+    #TFE_EXPLORER_DATABASE_PASSWORD: ${explorer_db_password}
+
+  # Mount redis certs
+extraVolumes:
+  - name: redis-mtls-certs
+    secret:
+      secretName: redis-mtls-certs
+extraVolumeMounts:
+  - name: redis-mtls-certs
+    mountPath: /etc/redis-mtls
+    readOnly: true  

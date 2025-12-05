@@ -8,25 +8,30 @@ terraform {
       source  = "vancluever/acme"
       version = "~> 2.5.3"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.12.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.36.0"
+    }
   }
 }
 
 provider "google" {
   # Configuration options
-  credentials = file("${path.module}/../key.json")
+  credentials = file("${path.module}/../../key.json")
   project     = data.terraform_remote_state.infra.outputs.gcp_project
   region      = data.terraform_remote_state.infra.outputs.gcp_region
 }
 
 provider "google-beta" {
-  credentials = file("${path.module}/../key.json")
+  credentials = file("${path.module}/../../key.json")
   project     = data.terraform_remote_state.infra.outputs.gcp_project
   region      = data.terraform_remote_state.infra.outputs.gcp_region
 }
 
-provider "aws" {
-  region = var.aws_region
-}
 
 provider "acme" {
   # server_url = "https://acme-staging-v02.api.letsencrypt.org/directory"

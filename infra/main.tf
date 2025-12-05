@@ -54,6 +54,10 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 
   deletion_policy = "ABANDON"
+
+  depends_on = [
+    google_project_service.apis["servicenetworking.googleapis.com"],
+  ]
 }
 
 
@@ -73,6 +77,12 @@ resource "google_sql_database_instance" "instance" {
       private_network                               = google_compute_network.tfe_vpc.id
       enable_private_path_for_google_cloud_services = true
     }
+    
+    # Enable IAM authentication for passwordless database access
+    database_flags {
+      name  = "cloudsql.iam_authentication"
+      value = "on"
+    }
   }
   deletion_protection = false
 }
@@ -86,7 +96,7 @@ resource "google_project_iam_binding" "example_storage_admin_binding" {
   ]
 }
 
-# doing it all on bucket permissions
+
 resource "google_service_account" "service_account" {
   account_id   = "${var.tag_prefix}-bucket-test2"
   display_name = "${var.tag_prefix}-bucket-test2"
@@ -102,31 +112,56 @@ data "google_project" "project" {
 }
 
 
+# Enable required Google Cloud APIs
+resource "google_project_service" "apis" {
+  for_each           = toset([
+    "compute.googleapis.com",
+    "container.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "sqladmin.googleapis.com",
+    "redis.googleapis.com",
+    "iam.googleapis.com",
+  ])
+  project            = var.gcp_project
+  service            = each.value
+  disable_on_destroy = false
+}
+
 # these are for the service account when using auto-pilot GKE
 resource "google_storage_bucket_iam_member" "object_viewer_binding" {
+  # Bindings for GKE Autopilot using Workload Identity (Kubernetes SA principal)
+  count  = var.gke_auto_pilot_enabled ? 1 : 0
   bucket = google_storage_bucket.tfe-bucket.name
 
   role   = "roles/storage.objectAdmin"
-  member = "principal://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${data.google_project.project.project_id}.svc.id.goog/subject/ns/terraform-enterprise/sa/terraform-enterprise"
+  # GKE Workload Identity member format: serviceAccount:PROJECT_ID.svc.id.goog[namespace/serviceaccount]
+  member = "serviceAccount:${var.gcp_project}.svc.id.goog[terraform-enterprise/terraform-enterprise]"
 }
 
 resource "google_storage_bucket_iam_member" "object_viewer_binding2" {
+  # Bindings for GKE Autopilot using Workload Identity (Kubernetes SA principal)
+  count  = var.gke_auto_pilot_enabled ? 1 : 0
   bucket = google_storage_bucket.tfe-bucket.name
 
   role   = "roles/storage.legacyBucketReader"
-  member = "principal://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${data.google_project.project.project_id}.svc.id.goog/subject/ns/terraform-enterprise/sa/terraform-enterprise"
+  # GKE Workload Identity member format: serviceAccount:PROJECT_ID.svc.id.goog[namespace/serviceaccount]
+  member = "serviceAccount:${var.gcp_project}.svc.id.goog[terraform-enterprise/terraform-enterprise]"
 }
 
 
 
 # these are for the service account when using non auto-pilot GKE
 resource "google_storage_bucket_iam_member" "member-object" {
+  # Bindings for non-Autopilot (using Google Service Account directly)
+  count  = var.gke_auto_pilot_enabled ? 0 : 1
   bucket = google_storage_bucket.tfe-bucket.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.service_account.email}"
 }
 
 resource "google_storage_bucket_iam_member" "member-bucket" {
+  # Bindings for non-Autopilot (using Google Service Account directly)
+  count  = var.gke_auto_pilot_enabled ? 0 : 1
   bucket = google_storage_bucket.tfe-bucket.name
   role   = "roles/storage.legacyBucketReader"
   member = "serviceAccount:${google_service_account.service_account.email}"
@@ -143,5 +178,18 @@ resource "google_sql_user" "tfeadmin" {
   name            = "admin-tfe"
   instance        = google_sql_database_instance.instance.name
   password        = var.rds_password
+  deletion_policy = "ABANDON"
+}
+
+# Explorer database (on same Cloud SQL instance)
+resource "google_sql_database" "tfe-explorer-db" {
+  name     = "tfe-explorer"
+  instance = google_sql_database_instance.instance.name
+}
+
+resource "google_sql_user" "tfe-explorer-admin" {
+  name            = "admin-tfe-explorer"
+  instance        = google_sql_database_instance.instance.name
+  password        = var.rds_password  # Using same password as main DB for simplicity
   deletion_policy = "ABANDON"
 }

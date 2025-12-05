@@ -13,13 +13,13 @@ terraform {
 
 provider "google" {
   # Configuration options
-  credentials = file("${path.module}/../key.json")
+  credentials = file("${path.module}/../../key.json")
   project     = var.gcp_project
   region      = var.gcp_region
 }
 
 provider "google-beta" {
-  credentials = file("${path.module}/../key.json")
+  credentials = file("${path.module}/../../key.json")
   project     = var.gcp_project
   region      = var.gcp_region
 }

@@ -25,3 +25,9 @@ variable "rds_password" {
 variable "gke_auto_pilot_enabled" {
   description = "create a cluster with gke-auto-pilot true or false"
 }
+
+variable "redis_auth_enabled" {
+  description = "Enable AUTH (password) on Redis Memorystore instance"
+  type        = bool
+  default     = false
+}

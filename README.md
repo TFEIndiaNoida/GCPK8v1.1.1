@@ -180,4 +180,4 @@ tfe_application_url = "https://tfe29.aws.munnep.com"
 - [x] create a bucket
 - [x] Create a valid certificate to use 
 - [x] install TFE using helm chart
-- [x] point dns name to loadbalancer 
+- [x] point dns name to loadbalancer # GCPK8v1.1.1

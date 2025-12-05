@@ -39,6 +39,9 @@ resource "google_container_node_pool" "primary_preemptible_nodes" {
   }
 
   lifecycle {
-    ignore_changes = [ node_config[0].kubelet_config ]
+    ignore_changes = [
+      node_config[0].kubelet_config,
+      node_config[0].resource_labels,
+    ]
   }
 }

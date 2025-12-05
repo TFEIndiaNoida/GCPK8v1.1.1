@@ -1,8 +1,8 @@
 
 locals {
   namespace       = "terraform-enterprise"
-  full_chain      = "${acme_certificate.certificate.certificate_pem}${acme_certificate.certificate.issuer_pem}"
-  gke_environment = data.terraform_remote_state.infra.outputs.gke_auto_pilot_enabled ? "gke-auto-pilot" : "gke"
+  full_chain      = "${acme_certificate.certificate_gcp.certificate_pem}${acme_certificate.certificate_gcp.issuer_pem}"
+  # Always use standard GKE overrides
 }
 
 
@@ -33,13 +33,12 @@ DOCKER
   type = "kubernetes.io/dockerconfigjson"
 }
 
-# optional code to use the local repository download of the helm chart
 # resource "helm_release" "tfe" {
 #   name      = "terraform-enterprise"
 #   chart     = "${path.module}/terraform-enterprise-helm"
 #   namespace = "terraform-enterprise"
 #   values = [
-#     "${file("${path.module}/overrides.yaml")}"
+#     "${file("${path.module}/overrides.yaml")}" 
 #   ]
 #   depends_on = [
 #     kubernetes_secret.example, kubernetes_namespace.terraform-enterprise
@@ -62,15 +61,15 @@ DOCKER
 # The default for using the helm chart from internet
 resource "helm_release" "tfe" {
   name       = local.namespace
-  repository = "helm.releases.hashicorp.com"
-  chart      = "hashicorp/terraform-enterprise"
+  repository = "https://helm.releases.hashicorp.com"
+  chart      = "terraform-enterprise"
   namespace  = local.namespace
 
   force_update    = true
   cleanup_on_fail = true
   replace         = true
   values = [
-    templatefile("${path.module}/overrides-${local.gke_environment}.yaml", {
+    templatefile("${path.module}/overrides-gke.yaml", {
       replica_count = var.replica_count
       region        = data.terraform_remote_state.infra.outputs.gcp_region
       enc_password  = var.tfe_encryption_password
@@ -81,15 +80,24 @@ resource "helm_release" "tfe" {
       fqdn          = "${var.dns_hostname}.${var.dns_zonename}"
       google_bucket = data.terraform_remote_state.infra.outputs.google_bucket
       gcp_project   = data.terraform_remote_state.infra.outputs.gcp_project
+      // Base64-encoded service account credentials as required by chart
+      google_creds_b64 = base64encode(file("../../key.json"))
       cert_data     = "${base64encode(local.full_chain)}"
-      key_data      = "${base64encode(nonsensitive(acme_certificate.certificate.private_key_pem))}"
+      key_data      = "${base64encode(nonsensitive(acme_certificate.certificate_gcp.private_key_pem))}"
       ca_cert_data  = "${base64encode(local.full_chain)}"
       redis_host    = data.terraform_remote_state.infra.outputs.redis_host
       redis_port    = data.terraform_remote_state.infra.outputs.redis_port
       tfe_license   = var.tfe_license
       tfe_release   = var.tfe_release
+      # Explorer database configuration
+      explorer_db_host     = data.terraform_remote_state.infra.outputs.explorer_db_host
+      explorer_db_name     = data.terraform_remote_state.infra.outputs.explorer_db_name
+      explorer_db_user     = data.terraform_remote_state.infra.outputs.explorer_db_user
+      explorer_db_password = data.terraform_remote_state.infra.outputs.explorer_db_password
     })
   ]
+  timeout = 900
+  wait    = false
   depends_on = [
     kubernetes_secret.example, kubernetes_namespace.terraform-enterprise
   ]
