@@ -16,7 +16,6 @@ resources:
 env:
   variables:
     TFE_HOSTNAME: ${fqdn}
-    TFE_OPERATIONAL_MODE: active-active
     TFE_DATABASE_HOST: ${pg_address}
     TFE_DATABASE_NAME: ${pg_dbname}
     TFE_DATABASE_USER: ${pg_user}
