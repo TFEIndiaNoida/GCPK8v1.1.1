@@ -168,18 +168,17 @@ cd ../tfe
 Create `variables.auto.tfvars` with your configuration:
 ```hcl
 # DNS Configuration
-dns_hostname            = "tfe29"                                      # Hostname for TFE
-dns_zonename            = "hc-f4cfe5fcacd245c7985c932215d.gcp.sbx.hashicorpdemo.com"  # Your GCP DNS zone
-certificate_email       = "your.email@example.com"                     # Email for Let's Encrypt certificates
+dns_hostname               = "tfe29"                                   # Hostname used for TFE
+dns_zonename               = "hc-f4cfe5fcacd245c7985c932215d.gcp.sbx.hashicorpdemo.com"
+certificate_email          = "ramit.bansal@hashicorp.com"             # email address used for creating valid certificates
+tfe_encryption_password    = "Password#1"                              # encryption key used by TFE
+tfe_license                = "02MV4UU43BK5HGYYTOJZWFQMTMNNEWU33JJVVECMSNNJMTKTTKIF2FSVCNPJHGSMLIJVCE42KMKRAXUWLNKV2E6V2FGBGVOTJRJZ5FCMSZKRCXOSLJO5UVSM2WPJSEOOLULJMEUZTBK5IWST3JJF5E4MSRGNNFIQLZJV4TC3KZPJRXQTCXJJWFSVCNORMTEVTJJ5JTA6CNIRHGSWTKLF3U6RCFO5GTEVLJJRBUU4DCNZHDAWKXPBZVSWCSOBRDENLGMFLVC2KPNFEXCSLJO5UWCWCOPJSFOVTGMRDWY5C2KNETMSLKJF3U22SVORGUIULUJVCFUVKNKRETMTSEMM3E4VDLOVGWU2ZTJVVFS6KNKRATAV3JJFZUS3SOGBMVQSRQLAZVE4DCK5KWST3JJF4U2RCJGFGFIQJQJRKECMSWIRAXOT3KIF3U62SBO5LWSSLTJFWVMNDDI5WHSWKYKJYGEMRVMZSEO3DULJJUSNSJNJEXOTLKLF2E2RCRORGUIVSVJVVE2NSOKRVTMTSUNN2U6VDLGVLWSSLTJFXFE3DDNUYXAYTNIYYGCVZZOVMDGUTQMJLVK2KPNFEXSTKEJEZEYVCBGJGFIQJQKZCES6SPNJKTKT3KKU2UY2TLGVHVM33JJRBUU53DNU4WWZCXJYYES2TPNFSEOVTZMNWUM3LCGNFHISLJO5UVU3LYNBNDGTLJJ5XHIOLGKE6T2LTMK43EO6JUK5RGOMTWPBUDA3CPI5ZU4L3KPBRVS5TZGZZWSSLVLBAWEWK2IE4XOK3RLB4ECRDGJVHHG5BRJZ4TMZJUPJNGGS3DNJLC6ODYOFZUYOCVK54W4TLPI5IU2WDPLBWUUQLQGFSEC23DME2GIVRQGMZTQUDXNVLGYYLWJJIDI4CKPBEUSOKEGZKUMTCVMFLFA2TLK5FHIY2EGZYGC3BWN5HWMR3OJMZHUUCLJJJG2R2IKYZWKWTXOFDGKK3PG5VS64ZLIFKE42CQLJTVGL2LKZMWOL2LFNWEOUDXJQ3WUQTYJE3UOT3BNM3FKYLJMFEG6ZLLGBJFI3ZXGJCFCPJ5"
 
-# TFE Configuration
-tfe_encryption_password = "Password#1"                                 # TFE encryption password
-tfe_license             = "02MV4UU43BK5HGYYTOJZ..."                   # Your full TFE license (raw text)
-tfe_release             = "1.1.1"                                      # TFE version (e.g., 1.1.1, v202501-1)
-replica_count           = 2                                            # Number of TFE pod replicas
+                    
+replica_count              = 2                                         # Number of replicas for TFE you would like to have started (Explorer requires minimum 2 replicas)
 
-# GCP (for DNS - using Google Cloud DNS)
-gcp_region              = "asia-south1"                                # Same as infrastructure region
+tfe_release                = "1.1.1"                               # The version of TFE application you wish to be deployed   
+
 ```
 
 **Important Configuration Notes:**
