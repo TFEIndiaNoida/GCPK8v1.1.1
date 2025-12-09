@@ -46,7 +46,7 @@ env:
     # Explorer settings disabled - incompatible with IAM passwordless authentication
     # TFE_EXPLORER_DATABASE_HOST: ${explorer_db_host}
     # TFE_EXPLORER_DATABASE_NAME: ${explorer_db_name}
-    # TFE_EXPLORER_DATABASE_USER: ${pg_user}
+    # TFE_EXPLORER_DATABASE_USER: ${explorer_db_user}
     # TFE_EXPLORER_DATABASE_PARAMETERS: sslmode=require
   secrets:
     TFE_ENCRYPTION_PASSWORD:  ${enc_password}
